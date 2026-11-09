@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>مشغل الموسيقى</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --c1:#3b2a6b; --c2:#12303f; --accent:#9d85f2;
+  --bg1:#1c1438; --bg2:#0b1820;
+  --text:#fff; --muted:rgba(255,255,255,.65);
+  --glass:rgba(255,255,255,.1); --glass-b:rgba(255,255,255,.16);
+}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;
+  color:var(--text);background:var(--bg2);
+  display:flex;justify-content:center;padding:16px;
+}
+#bg,#bgimg{position:fixed;inset:0;z-index:-2;transition:background 1s ease}
+#bg{background:radial-gradient(80% 45% at 50% -5%,color-mix(in srgb,var(--accent) 38%,transparent),transparent 70%),linear-gradient(160deg,var(--bg1),var(--bg2))}
+#bgimg{background-size:cover;background-position:center;filter:blur(60px) saturate(1.4);opacity:.45;transform:scale(1.3);transition:background-image .6s, opacity .6s}
+.app{width:100%;max-width:520px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--glass);border:1px solid var(--glass-b);border-radius:26px;padding:20px;box-shadow:0 14px 40px -14px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.14);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.cover{width:100%;aspect-ratio:1;border-radius:20px;background:#222 center/cover;box-shadow:0 26px 60px -18px var(--accent),0 12px 30px -12px rgba(0,0,0,.6);transition:transform .4s}
+.cover.playing{transform:scale(1.02)}
+.info{text-align:center;margin-top:16px}
+.info h2{font-size:1.45rem;font-weight:800;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info p{color:var(--muted);font-size:.95rem;margin-top:4px}
+.edit-row{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+button,label.btn{font:inherit;color:var(--text);cursor:pointer;border:1px solid var(--glass-b);background:var(--glass);border-radius:999px;padding:8px 14px;font-size:.85rem;transition:background .2s}
+button:hover,label.btn:hover{background:rgba(255,255,255,.2)}
+.bar{direction:ltr;display:flex;align-items:center;gap:10px;margin-top:18px;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:6px;background:linear-gradient(to right,var(--accent) var(--p,0%),rgba(255,255,255,.22) var(--p,0%));outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:none;box-shadow:0 0 0 4px rgba(255,255,255,.18),0 2px 8px rgba(0,0,0,.4)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:none;box-shadow:0 0 0 4px rgba(255,255,255,.18),0 2px 8px rgba(0,0,0,.4)}
+.controls{direction:ltr;display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
+.controls button{width:46px;height:46px;padding:0;display:grid;place-items:center;font-size:1.1rem;border-radius:50%}
+.controls button.on{background:var(--accent);color:#111}
+.controls .play{width:64px;height:64px;font-size:1.5rem;background:var(--accent);color:#111;border:none}
+.vol{direction:ltr;display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:.9rem}
+.top{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.top h3{font-size:1rem}
+.list{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:300px;overflow-y:auto}
+.item{display:flex;align-items:center;gap:12px;padding:8px;border-radius:14px;cursor:pointer;transition:background .2s}
+.item:hover{background:rgba(255,255,255,.1)}
+.item.active{background:rgba(255,255,255,.18)}
+.item .th{width:44px;height:44px;border-radius:10px;background:#222 center/cover;flex:none}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:600;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .t small{color:var(--muted)}
+.item .del{padding:4px 9px;font-size:.8rem;opacity:.7}
+.empty{text-align:center;color:var(--muted);padding:18px 8px;font-size:.9rem;line-height:1.7}
+.drop{outline:2px dashed var(--accent);outline-offset:-8px}
+.lyrics{position:relative;margin-top:14px;height:220px;overflow-y:auto;scroll-behavior:smooth;text-align:center;padding:70px 22px;-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);scrollbar-width:none}
+.lyrics::-webkit-scrollbar{display:none}
+.lyrics p{padding:7px 8px;font-size:1.05rem;line-height:1.55;font-weight:600;color:#fff;opacity:.3;cursor:pointer;transition:opacity .45s,transform .45s,filter .45s}
+.lyrics p.on{opacity:1;transform:scale(1.14);font-weight:800;filter:drop-shadow(0 0 14px var(--accent));background:linear-gradient(to var(--d,left),#fff var(--prog,0%),rgba(255,255,255,.4) var(--prog,0%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.lyrics p.next1,.lyrics p.past1{opacity:.55}
+.lyrics p.next2,.lyrics p.past2{opacity:.38;filter:blur(.4px)}
+.lyrics p.next3,.lyrics p.past3{opacity:.25;filter:blur(1px)}
+.lyrics.plain p{opacity:.85;font-weight:500;cursor:default}
+.lyrics p.none{opacity:.85;cursor:default;font-weight:500;font-size:.92rem}
+.addlyr{margin-top:10px}
+[hidden]{display:none!important}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.opts button{flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;border-radius:16px;padding:12px;text-align:right;line-height:1.4}
+.opts small{color:var(--muted);font-size:.72rem}
+.ib2{width:36px;height:36px;padding:0;justify-content:center;border-radius:50%}
+.syncctx{text-align:center;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;color:var(--muted)}
+.tap{padding:24px;font-size:1.05rem;margin-bottom:10px}
+#lyrHint{display:block;margin-top:10px;color:var(--muted);line-height:1.6}
+#shiftRow{align-items:center;margin-top:10px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.show{display:flex}
+.modal .box{width:100%;max-width:480px;max-height:92vh;overflow-y:auto;background:#1d1d27;border:1px solid var(--glass-b);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.modal small{color:var(--muted);line-height:1.6}
+textarea{width:100%;min-height:200px;resize:vertical;font:inherit;color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--glass-b);border-radius:12px;padding:10px;direction:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.cursor{font-size:1.3rem;font-weight:700;text-align:center;padding:24px 8px;background:rgba(255,255,255,.08);border-radius:12px;margin-bottom:10px}
+.big{width:100%;padding:16px;font-size:1rem;background:var(--accent);color:#111;border:none}
+button,label.btn{display:inline-flex;align-items:center;gap:6px}
+svg{flex:none}
+.btn svg,button svg{width:18px;height:18px}
+.controls button svg{width:22px;height:22px}
+.controls .play svg{width:28px;height:28px}
+.controls .play{box-shadow:0 10px 26px -8px var(--accent)}
+.vol span{display:grid}.vol svg{width:18px;height:18px}
+.item .del svg{width:14px;height:14px}
+.stage{display:flex;gap:10px;align-items:flex-start}
+.stage .card{flex:1;min-width:0;padding:16px}
+.rail{display:flex;flex-direction:column;gap:10px;position:sticky;top:16px}
+.ib{position:relative;width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:15px;cursor:pointer;color:var(--text);background:var(--glass);border:1px solid var(--glass-b);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);transition:background .2s,transform .15s}
+.ib:active{transform:scale(.92)}
+.ib svg{width:20px;height:20px}
+.ib::after{content:attr(data-label);position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%) scale(.92);white-space:nowrap;background:rgba(0,0,0,.82);color:#fff;font-size:.8rem;padding:6px 11px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:5}
+.ib:hover::after,.ib.tip::after{opacity:1;transform:translateY(-50%) scale(1)}
+.big{justify-content:center}
+.txt{width:100%;font:inherit;color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--glass-b);border-radius:12px;padding:11px}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 16px;border-radius:12px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .3s;z-index:20;max-width:90%;text-align:center}
+.toast.show{opacity:1}
+.item.active{box-shadow:inset -3px 0 0 var(--accent)}
+.eq{display:none;gap:2px;align-items:flex-end;height:14px}
+.item.active .eq{display:flex}
+.eq i{width:3px;height:30%;background:var(--accent);border-radius:2px}
+.playing .eq i{animation:eq .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{50%{height:100%}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+#plCard .top{flex-direction:column;align-items:center;gap:12px}
+#plCard .top .btn{width:100%;justify-content:center}
+.item .t{text-align:center}
+.item .th{position:relative;overflow:hidden}
+.eq{position:absolute;left:0;right:0;bottom:0;height:16px;padding:0 0 3px;justify-content:center;background:rgba(0,0,0,.5)}
+.lyrics.empty{height:auto;padding:0;margin-top:12px;overflow:visible;-webkit-mask-image:none;mask-image:none}
+.addlyr{width:100%;justify-content:center;margin-top:0}
+.opts{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+#shiftRow{display:block}
+#shiftRow small{display:block;margin-bottom:6px}
+.trio{direction:ltr;display:flex;gap:4px}
+.trio button{flex:1;padding:7px 2px;justify-content:center;font-size:.78rem}
+.modal .box.ed{height:92vh;max-height:92vh;overflow:hidden}
+#editorUI{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.edhint{color:var(--muted);line-height:1.6;font-size:.76rem}
+.edplayer{direction:ltr;display:flex;align-items:center;gap:6px}
+.edplayer input{flex:1;min-width:0}
+.edplayer button{padding:6px 9px;font-size:.76rem;justify-content:center}
+.edplayer .ib2{width:38px;height:38px;flex:none}
+.edtime{direction:ltr;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:.8rem}
+.edlist{position:relative;flex:1;min-height:90px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;border-radius:12px;background:rgba(0,0,0,.2);padding:6px}
+.erow{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;cursor:pointer;border:1px solid transparent;flex:none}
+.erow.sel{background:rgba(255,255,255,.14);border-color:var(--accent)}
+.erow.now .en{color:var(--accent);font-weight:800}
+.en{width:22px;text-align:center;color:var(--muted);font-size:.78rem;flex:none}
+.et{flex:1;min-width:0;font-size:.9rem;line-height:1.4}
+.chip{direction:ltr;padding:4px 6px;font-size:.7rem;border-radius:8px;font-variant-numeric:tabular-nums;opacity:.5;min-width:54px;justify-content:center}
+.chip.set{opacity:1;background:rgba(255,255,255,.18)}
+.edock{display:flex;flex-direction:column;gap:8px}
+.hold{padding:20px;user-select:none;-webkit-user-select:none;touch-action:none}
+.hold.down{transform:scale(.97);filter:brightness(1.25)}
+.fine{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}
+.fine small{display:block;color:var(--muted);margin-bottom:4px}
+.edock .row button{flex:1;justify-content:center;font-size:.78rem;padding:8px 4px}
+.big:hover{background:var(--accent);filter:brightness(1.1)}
+.controls button.on:hover{background:var(--accent)}
+#bg{overflow:hidden}
+#bgimg{opacity:.22!important;mix-blend-mode:soft-light}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.85;background-color:#444;transition:background-color 1.4s ease;will-change:transform}
+#b1{width:75vmax;height:75vmax;max-width:720px;max-height:720px;top:-18%;left:-28%;animation:d1 22s ease-in-out infinite alternate}
+#b2{width:62vmax;height:62vmax;max-width:600px;max-height:600px;top:28%;right:-32%;animation:d2 28s ease-in-out infinite alternate}
+#b3{width:68vmax;height:68vmax;max-width:660px;max-height:660px;bottom:-22%;left:-12%;animation:d3 25s ease-in-out infinite alternate}
+@keyframes d1{to{transform:translate(20%,14%) scale(1.15)}}
+@keyframes d2{to{transform:translate(-22%,-10%) scale(.88)}}
+@keyframes d3{to{transform:translate(16%,-14%) scale(1.2)}}
+#bg::before,#bg::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:1}
+#bg::before{background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");opacity:.07}
+#bg::after{background:radial-gradient(130% 95% at 50% 38%,transparent 45%,rgba(0,0,0,.5))}
+.coverwrap{position:relative;isolation:isolate}
+.coverwrap::before{content:'';position:absolute;inset:12% 5% -3%;background:var(--cover) center/cover;filter:blur(28px) saturate(1.7);opacity:.45;border-radius:32px;z-index:-1;transition:opacity .6s}
+.playing .coverwrap::before{opacity:.85}
+.cover{position:relative;border-radius:28px;transform:scale(.9);background:linear-gradient(135deg,#2b2b3d,#14141d) center/cover;box-shadow:0 18px 40px -16px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.18);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.cover.playing{transform:scale(1)}
+.cover::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,.3),rgba(255,255,255,0) 38%,rgba(0,0,0,.2));pointer-events:none}
+.lyrics p{transition:opacity .4s cubic-bezier(.2,.7,.2,1),transform .5s cubic-bezier(.2,.85,.25,1),filter .4s}
+.lyrics p.on{transform:translateY(0) scale(1.14)}
+.lyrics p.next1,.lyrics p.next2,.lyrics p.next3{transform:translateY(7px)}
+.lyrics p.past1,.lyrics p.past2,.lyrics p.past3{transform:translateY(-4px) scale(.97)}
+.card{background:rgba(12,12,22,.32)}
+.item.active{background:rgba(255,255,255,.14)}
+.lyrics{overflow-x:hidden}
+.coverwrap::before{opacity:.2;inset:14% 8% -2%;filter:blur(30px) saturate(1.3)}
+.playing .coverwrap::before{opacity:.34}
+.cover.empty{display:grid;place-items:center;cursor:pointer}
+.cover.empty::before{content:'اضغط لإضافة أغنية';color:var(--muted);font-size:.95rem;font-weight:600;padding:0 20px;text-align:center}
+.note{display:block;text-align:center;color:var(--muted);font-size:.74rem;margin-top:12px}
+.coverwrap{max-width:clamp(220px,calc(100vh - 520px),420px);margin-inline:auto}
+.ib span{display:grid}
+.ib:not([data-label])::after{display:none}
+.badge{position:absolute;top:-5px;left:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#111;font:700 .68rem/18px system-ui,sans-serif;font-style:normal;text-align:center}
+.rail.l .ib::after{right:auto;left:calc(100% + 10px)}
+.volwrap{position:relative}
+.volpop{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) scale(.95);transform-origin:left center;direction:ltr;display:flex;align-items:center;gap:8px;width:190px;padding:8px 12px;border-radius:16px;background:rgba(14,14,24,.9);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--glass-b);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:6}
+.volpop.open{opacity:1;pointer-events:auto;transform:translateY(-50%) scale(1)}
+.volpop input{flex:1;min-width:0}
+#plCard{position:fixed;top:0;bottom:0;left:0;width:min(88vw,380px);z-index:30;display:flex;flex-direction:column;border-radius:0 26px 26px 0;padding-top:calc(22px + env(safe-area-inset-top,0px));background:rgba(14,14,24,.9);transform:translateX(-105%);visibility:hidden;transition:transform .38s cubic-bezier(.2,.8,.2,1),visibility 0s .38s}
+#plCard.open{transform:none;visibility:visible;transition:transform .38s cubic-bezier(.2,.8,.2,1)}
+#plCard .list{max-height:none;flex:1;min-height:0}
+#plCard .close{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px}
+#plCard .top h3{padding:0 40px}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s;z-index:25}
+#scrim.show{opacity:1;pointer-events:auto}
+@media (max-width:430px){
+  .stage{gap:8px}
+  .stage .card{padding:12px}
+  .ib{width:40px;height:40px;border-radius:14px}
+  .rail{gap:8px}
+  .controls{gap:6px}
+  .controls button{width:36px;height:36px}
+  .controls .play{width:52px;height:52px}
+  .controls button svg{width:18px;height:18px}
+  .controls .play svg{width:24px;height:24px}
+}
+@media (max-width:340px){
+  .stage{flex-direction:column;align-items:stretch}
+  .rail{flex-direction:row;justify-content:center;position:static}
+  .ib::after,.rail.l .ib::after{right:auto;left:50%;top:auto;bottom:calc(100% + 8px);transform:translateX(-50%) scale(.92)}
+  .ib:hover::after,.ib.tip::after{transform:translateX(-50%) scale(1)}
+  .volpop{left:auto;right:0;top:auto;bottom:calc(100% + 10px);transform:none}
+  .volpop.open{transform:none}
+}
+.app{overflow-x:clip}
+@media (max-width:340px){.ib::after,.rail.l .ib::after{display:none!important}}
+#coverVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.plwrap{position:relative}
+.badge{top:-6px;left:auto;right:-6px;width:20px;height:20px;min-width:0;padding:0;border-radius:50%;font:800 .7rem/20px system-ui,sans-serif;z-index:3;pointer-events:none;box-shadow:0 0 0 2px rgba(14,14,24,.85)}
+.rail{z-index:6}
+.lyrics p{font-family:var(--lf,inherit);font-size:calc(1.05rem*var(--ls,1));font-weight:var(--lw,600)}
+.lyrics p.on{font-weight:var(--lwo,800)}
+.lyrics[data-fx="glow"] p.on{background:none;-webkit-text-fill-color:#fff;color:#fff;filter:none;text-shadow:0 0 14px var(--accent),0 0 34px var(--accent)}
+.lyrics[data-fx="plain"] p.on{background:none;-webkit-text-fill-color:var(--accent);color:var(--accent);filter:none;transform:scale(1.06)}
+.lyrics.pv{height:auto;padding:12px 10px;margin:0;overflow:visible;-webkit-mask-image:none;mask-image:none;background:rgba(0,0,0,.22);border-radius:14px}
+.lyrics.pv p{cursor:default}
+.stsec{display:flex;flex-direction:column;gap:8px}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fc{position:relative;flex-direction:column;gap:2px;padding:10px 4px;border-radius:14px;justify-content:center;min-width:0}
+.fc span{font-size:1.1rem;line-height:1.5;white-space:nowrap}
+.fc small{font-size:.66rem;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.fc.sel,.seg button.sel{background:var(--accent);color:#111;border-color:transparent}
+.fc.sel:hover,.seg button.sel:hover{background:var(--accent)}
+.fdel{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.35);display:grid;place-items:center}
+.fdel svg{width:12px;height:12px}
+.addfont{justify-content:center}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;justify-content:center}
+.lyrics.pv{position:sticky;top:-18px;z-index:3;margin:-4px -4px 0;box-shadow:0 8px 20px -8px rgba(0,0,0,.6);background:#171722!important}
+*{-webkit-tap-highlight-color:transparent}
+html,body{-webkit-touch-callout:none}
+body{-webkit-user-select:none;user-select:none}
+textarea,.txt{-webkit-user-select:text;user-select:text}
+button,label,input[type=range]{touch-action:manipulation}
+button:focus,label:focus{outline:none}
+.ib,.ib2,.volpop,.chip{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.ib{background:rgba(255,255,255,.13)}
+#bgimg{mix-blend-mode:normal!important}
+html.lite .blob{animation:none!important;filter:blur(36px)!important;transition:none!important;opacity:.7}
+html.lite #bgimg,html.lite #bg::before{display:none}
+html.lite *{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html.lite .card{background:rgba(14,14,24,.74)}
+html.lite .coverwrap::before{filter:blur(16px)!important}
+html.lite .lyrics p.on{filter:none}
+html.lite .lyrics p{transition-duration:.22s}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div id="bg"><i class="blob" id="b1"></i><i class="blob" id="b2"></i><i class="blob" id="b3"></i></div><div id="bgimg"></div>
+<main class="app">
+  <div class="stage">
+  <div class="rail">
+    <button class="ib" id="lyrBtn" data-i="lyrics" data-label="الكلمات"></button>
+    <button class="ib" id="styleBtn" data-i="type" data-label="شكل الكلمات"></button>
+    <label class="ib" for="coverIn" data-i="image" data-label="تغيير الغلاف"></label>
+    <button class="ib" id="editBtn" data-i="pencil" data-label="تعديل الاسم"></button>
+  </div>
+  <section class="card">
+    <div class="coverwrap" id="coverwrap"><div class="cover empty" id="cover"></div></div>
+    <div class="info">
+      <h2 id="title">لا توجد أغنية</h2>
+      <p id="artist">أضف أغنية للبدء</p>
+    </div>
+    <div class="bar">
+      <span id="cur">0:00</span>
+      <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+      <span id="dur">0:00</span>
+    </div>
+    <div class="controls">
+      <button id="shuffle" title="عشوائي" data-i="shuffle"></button>
+      <button id="prev" title="السابق" data-i="prev"></button>
+      <button class="play" id="play" title="تشغيل" data-i="play"></button>
+      <button id="next" title="التالي" data-i="next"></button>
+      <button id="repeat" title="تكرار" data-i="repeat"></button>
+    </div>
+    <div class="lyrics" id="lyrics"></div>
+  </section>
+  <div class="rail l">
+    <div class="plwrap"><button class="ib" id="plBtn" data-label="قائمة التشغيل"><span data-i="list"></span></button><i class="badge" id="plCount" hidden></i></div>
+    <div class="volwrap">
+      <button class="ib" id="volBtn" data-i="vhigh"></button>
+      <div class="volpop" id="volPop"><button class="ib2" id="muteBtn" data-i="vhigh" title="كتم"></button><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></div>
+    </div>
+  </div>
+  </div>
+
+  <section class="card" id="plCard">
+    <button class="ib2 close" id="plClose" data-i="x" title="إغلاق"></button>
+    <div class="top">
+      <h3>قائمة التشغيل</h3>
+      <label class="btn" for="songIn"><span data-i="plus"></span>إضافة أغاني</label>
+    </div>
+    <div class="list" id="list"></div>
+    <small class="note">تُحفظ أغانيك وكلماتك على هذا الجهاز داخل المتصفح</small>
+  </section>
+</main>
+<div id="scrim"></div>
+
+<div class="modal" id="editModal"><div class="box">
+  <h3>تعديل الأغنية</h3>
+  <input class="txt" id="eTitle" placeholder="اسم الأغنية">
+  <input class="txt" id="eArtist" placeholder="اسم الفنان">
+  <div class="row"><button id="eSave">حفظ</button><button id="eCancel">إلغاء</button></div>
+</div></div>
+<div class="modal" id="styleModal"><div class="box">
+  <div class="top"><h3>شكل الكلمات</h3><button class="ib2" id="stClose" data-i="x" title="إغلاق"></button></div>
+  <div class="lyrics pv" id="lyrPrev"><p class="past1">حيرتني ياضنيني</p><p class="on" style="--prog:55%;--d:left">كل يوم لك راي فيني</p><p class="next1">Third line english</p></div>
+  <div class="stsec"><small>الخط</small><div class="chips" id="fontChips"></div>
+    <label class="btn addfont" for="fontIn"><span data-i="plus"></span>إضافة خط من جهازك (TTF / OTF / WOFF)</label></div>
+  <div class="stsec"><small>الحجم</small><input type="range" id="stSize" min="0.8" max="1.8" step="0.05" value="1"></div>
+  <div class="stsec"><small>السماكة</small><div class="seg" id="segW"><button data-v="light">خفيف</button><button data-v="normal">عادي</button><button data-v="bold">عريض</button></div></div>
+  <div class="stsec"><small>تأثير السطر الحالي</small><div class="seg" id="segFx"><button data-v="fill">تعبئة</button><button data-v="glow">توهج</button><button data-v="plain">بسيط</button></div></div>
+  <div class="stsec"><small>الأداء</small><div class="seg" id="segPerf"><button data-v="auto">تلقائي</button><button data-v="fast">سريع</button><button data-v="full">جميل</button></div><small>«سريع» يوقف الضبابية والحركة الثقيلة لتصبح الواجهة أسلس على الهواتف البطيئة</small></div>
+  <button id="stReset">استعادة الافتراضي</button>
+</div></div>
+<input type="file" id="fontIn" accept=".ttf,.otf,.woff,.woff2,font/*">
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box" id="lyrBox">
+  <div class="top"><h3>كلمات الأغنية</h3><button class="ib2" id="lyrCancel" data-i="x" title="إغلاق"></button></div>
+  <div id="editArea">
+    <textarea id="lyrText" placeholder="الصق كلمات الأغنية هنا، سطر لكل جملة. ويمكنك لصق نص LRC فيه توقيت."></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="pasteBtn"><span data-i="clip"></span>لصق</button>
+      <label class="btn" for="lrcIn"><span data-i="file"></span>ملف</label>
+      <button id="clearBtn"><span data-i="trash"></span>مسح</button>
+    </div>
+    <small id="lyrHint"></small>
+    <div id="plainOpts" class="opts" hidden>
+      <button id="autoBtn"><b>توزيع تلقائي</b><small>سريع، والتوقيت تقريبي</small></button>
+      <button id="manBtn"><b>ضبط يدوي دقيق</b><small>حدّد بداية ونهاية كل سطر</small></button>
+    </div>
+    <div id="shiftRow" hidden><small>إزاحة كل الأسطر (− أبكر / + أبطأ):</small>
+      <div class="trio"><button data-sh="-0.5">−0.5</button><button data-sh="-0.1">−0.1</button><button data-sh="0.1">+0.1</button><button data-sh="0.5">+0.5</button></div></div>
+    <button class="big" id="lyrSave" style="margin-top:12px">حفظ الكلمات</button>
+  </div>
+  <div id="editorUI" hidden>
+    <small class="edhint">خفّض السرعة إلى 0.75× أو 0.5× للدقة. اضغط الزر الكبير مع بداية السطر وأبقِه مضغوطاً حتى ينتهي. ضغطة سريعة تحدّد البداية فقط.</small>
+    <div class="edplayer">
+      <button class="ib2" id="edPlay"></button>
+      <button id="edBk">-1s</button>
+      <input type="range" id="edSeek" min="0" max="1000" value="0">
+      <button id="edFw">+1s</button>
+      <button id="edSpeed">1x</button>
+    </div>
+    <div class="edtime" id="edTime"></div>
+    <div class="edlist" id="edList"></div>
+    <div class="edock">
+      <button class="big hold" id="holdBtn"><span data-i="timer"></span>اضغط مع بداية السطر وأبقِه حتى نهايته</button>
+      <div class="fine">
+        <div><small>البداية</small><div class="trio"><button data-n="s-0.1">−0.1</button><button data-n="s0">هنا</button><button data-n="s0.1">+0.1</button></div></div>
+        <div><small>النهاية</small><div class="trio"><button data-n="e-0.1">−0.1</button><button data-n="e0">هنا</button><button data-n="e0.1">+0.1</button></div></div>
+      </div>
+      <div class="row"><button id="edPrev">تجربة السطر</button><button id="edClr">مسح السطر</button><button id="edSave">حفظ</button><button id="edBack">رجوع</button></div>
+    </div>
+  </div>
+</div></div>
+<input type="file" id="songIn" accept="audio/*,.lrc" multiple>
+<input type="file" id="lrcIn" accept=".lrc,.txt,text/plain">
+<input type="file" id="coverIn" accept="image/*,video/*">
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const $ = id => document.getElementById(id);
+const svg = (p, f) => `<svg viewBox="0 0 24 24" fill="${f ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const SPK = '<path d="M11 5 6 9H2v6h4l5 4V5Z"/>';
+const ICON = {
+  play: svg('<polygon points="6 3 20 12 6 21 6 3"/>', 1),
+  pause: svg('<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>', 1),
+  prev: svg('<polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/>', 1),
+  next: svg('<polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/>', 1),
+  shuffle: svg('<path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/>'),
+  repeat: svg('<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'),
+  image: svg('<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>'),
+  pencil: svg('<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>'),
+  lyrics: svg('<path d="M17 12H7"/><path d="M19 18H5"/><path d="M21 6H3"/>'),
+  list: svg('<path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/>'),
+  type: svg('<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>'),
+  vmute: svg(SPK + '<line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/>'),
+  plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+  x: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+  vlow: svg(SPK),
+  vhigh: svg(SPK + '<path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>'),
+  file: svg('<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><path d="M14 2v6h6"/>'),
+  undo: svg('<path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>'),
+  clip: svg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
+  trash: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+  timer: svg('<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>')
+};
+function toast(m){ const e = $('toast'); e.textContent = m; e.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove('show'), 3200); }
+let pending = false;
+const MIME = {mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', weba: 'audio/webm', webm: 'audio/webm'};
+const guessMime = f => (f.type && f.type.startsWith('audio/')) ? f.type : (MIME[((f.name || '').split('.').pop() || '').toLowerCase()] || 'audio/mpeg');
+async function toBlob(f){ return new Blob([await f.arrayBuffer()], {type: guessMime(f)}); }
+function play(){
+  pending = true; clearTimeout(play.h); play.h = setTimeout(() => { pending = false; }, 700);
+  const done = () => { pending = false; };
+  const pr = audio.play();
+  if (pr) pr.then(done, e => { done(); if (e.name === 'NotAllowedError') toast('اضغط زر التشغيل للبدء'); });
+}
+function videoPoster(url){
+  return new Promise((res, rej) => {
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+    const fail = setTimeout(() => rej(new Error('timeout')), 10000);
+    v.onloadeddata = () => { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); };
+    v.onseeked = () => {
+      try {
+        const m = Math.min(v.videoWidth, v.videoHeight), o = Math.min(720, m), c = document.createElement('canvas');
+        c.width = c.height = o; c.getContext('2d').drawImage(v, (v.videoWidth - m) / 2, (v.videoHeight - m) / 2, m, m, 0, 0, o, o);
+        clearTimeout(fail); res(c.toDataURL('image/jpeg', .9));
+      } catch(e){ rej(e); }
+    };
+    v.onerror = () => { clearTimeout(fail); rej(new Error('video')); };
+  });
+}
+function applyCoverMedia(t){
+  let v = $('coverVid');
+  if (t && t.vidUrl){
+    if (!v){ v = document.createElement('video'); v.id = 'coverVid'; v.muted = true; v.loop = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.preload = 'auto'; $('cover').appendChild(v); }
+    if (v.dataset.src !== t.vidUrl){ v.src = t.vidUrl; v.dataset.src = t.vidUrl; }
+    if (audio.paused) v.pause(); else v.play().catch(() => {});
+  } else if (v) v.remove();
+}
+function setCoverImg(v){ $('cover').classList.toggle('empty', v === 'none'); $('cover').style.backgroundImage = v; $('coverwrap').style.setProperty('--cover', v); }
+const toData = f => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+const audio = $('audio'), root = document.documentElement;
+let tracks = [], cur = -1, shuffle = false, repeat = false, nid = 0;
+
+const fmt = s => isFinite(s) ? Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0') : '0:00';
+const loadImg = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+/* غلاف افتراضي بألوان مولّدة من اسم الأغنية */
+function defaultCover(name){
+  let h = 0; for (const ch of name) h = (h*31 + ch.charCodeAt(0)) % 360;
+  const S = 600, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, S, S);
+  gr.addColorStop(0, `hsl(${h},72%,46%)`); gr.addColorStop(1, `hsl(${(h+50)%360},70%,24%)`);
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  [[.15,.1,.55,60],[.9,.35,.5,150],[.3,1,.6,300]].forEach(([x,y,r,d]) => {
+    const rg = g.createRadialGradient(x*S, y*S, 0, x*S, y*S, r*S);
+    rg.addColorStop(0, `hsla(${(h+d)%360},90%,62%,.65)`); rg.addColorStop(1, `hsla(${(h+d)%360},90%,62%,0)`);
+    g.fillStyle = rg; g.fillRect(0, 0, S, S);
+  });
+  g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2;
+  for (let r = 90; r < 520; r += 46){ g.beginPath(); g.arc(S/2, S/2, r, 0, 7); g.stroke(); }
+  g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 36; g.shadowOffsetY = 14;
+  g.fillStyle = g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 17; g.lineCap = 'round';
+  [[225,425],[395,388]].forEach(([x,y]) => { g.beginPath(); g.ellipse(x, y, 48, 37, -.35, 0, 7); g.fill(); });
+  g.beginPath(); g.moveTo(266,412); g.lineTo(266,205); g.moveTo(436,375); g.lineTo(436,168); g.stroke();
+  g.beginPath(); g.moveTo(258,200); g.lineTo(444,158); g.lineTo(444,214); g.lineTo(258,256); g.closePath(); g.fill();
+  g.restore();
+  return c.toDataURL('image/jpeg', .9);
+}
+
+/* استخراج لونين مسيطرين من الغلاف */
+function extractColors(img){
+  const c = document.createElement('canvas'); c.width = c.height = 48;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, 48, 48);
+  const d = g.getImageData(0, 0, 48, 48).data, b = {};
+  for (let i = 0; i < d.length; i += 4){
+    const r = d[i], gg = d[i+1], bl = d[i+2], mx = Math.max(r,gg,bl), mn = Math.min(r,gg,bl);
+    if (mx < 25 || mn > 235) continue;
+    const sat = mx ? (mx-mn)/mx : 0, k = (r>>5)+','+(gg>>5)+','+(bl>>5);
+    const o = b[k] || (b[k] = {n:0, r:0, g:0, b:0, s:0});
+    o.n++; o.r += r; o.g += gg; o.b += bl; o.s += sat;
+  }
+  const arr = Object.values(b).map(o => ({
+    rgb:[o.r/o.n, o.g/o.n, o.b/o.n], score:o.n * (0.25 + o.s/o.n)
+  })).sort((a,b) => b.score - a.score);
+  if (!arr.length) return [[60,50,110],[20,40,60],[90,60,140]];
+  const first = arr[0].rgb;
+  const dist = (a,b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+  const second = (arr.find(o => dist(o.rgb, first) > 80) || {rgb:first.map(v => v*0.6)}).rgb;
+  const third = (arr.find(o => dist(o.rgb, first) > 70 && dist(o.rgb, second) > 70) || {rgb: mix(first, [255,255,255], .25)}).rgb;
+  return [first, second, third];
+}
+const mix = (c, t, a) => c.map((v,i) => Math.round(v*(1-a) + t[i]*a));
+const css = c => `rgb(${c.join(',')})`;
+
+function applyTheme(colors, src){
+  const [a, b, c = a] = colors;
+  root.style.setProperty('--bg1', css(mix(a,[0,0,0],.62)));
+  root.style.setProperty('--bg2', css(mix(b,[0,0,0],.78)));
+  const lum = (0.299*a[0] + 0.587*a[1] + 0.114*a[2]);
+  root.style.setProperty('--accent', css(lum < 110 ? mix(a,[255,255,255],.45) : mix(a,[255,255,255],.1)));
+  $('bgimg').style.backgroundImage = src ? `url("${src}")` : 'none';
+  $('b1').style.backgroundColor = css(mix(a,[0,0,0],.4)); $('b2').style.backgroundColor = css(mix(b,[0,0,0],.5)); $('b3').style.backgroundColor = css(mix(c,[0,0,0],.45));
+}
+
+async function setCover(t, src){
+  t.cover = src;
+  try { t.colors = extractColors(await loadImg(src)); } catch(e) { t.colors = [[60,50,110],[20,40,60],[90,60,140]]; }
+}
+
+/* إضافة أغاني */
+/* حفظ دائم + قراءة وسوم MP3 + صور */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const DBN = {db: null}; let dbWarned = false;
+function dbOpen(){
+  return new Promise(res => {
+    try {
+      const r = indexedDB.open('musicplayer', 2);
+      r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('tracks')) d.createObjectStore('tracks', {keyPath: 'uid'}); if (!d.objectStoreNames.contains('fonts')) d.createObjectStore('fonts', {keyPath: 'id'}); };
+      r.onsuccess = () => { DBN.db = r.result; res(true); };
+      r.onerror = r.onblocked = () => res(false);
+    } catch(e){ res(false); }
+  });
+}
+const dbReady = dbOpen();
+function dbReq(fn, store = 'tracks'){
+  return dbReady.then(() => new Promise(res => {
+    if (!DBN.db) return res(undefined);
+    try {
+      const tx = DBN.db.transaction(store, 'readwrite'), r = fn(tx.objectStore(store));
+      tx.oncomplete = () => res(r.result); tx.onerror = tx.onabort = () => res(null);
+    } catch(e){ res(null); }
+  }));
+}
+function persist(t){
+  if (!t) return;
+  dbReq(st => st.put({uid: t.uid, added: t.added, base: t.base, title: t.title, artist: t.artist, file: t.file, vid: t.vid || null, cover: t.cover, lrc: t.lrc || '', lyr: t.lyr || null}))
+    .then(r => { if (r === null && !dbWarned){ dbWarned = true; toast('تعذّر حفظ الأغنية للجلسة القادمة (المساحة ممتلئة أو التخزين غير متاح)'); } });
+}
+const dbDel = id => dbReq(st => st.delete(id));
+async function restore(){
+  await dbReady; if (!DBN.db) return;
+  const recs = ((await dbReq(st => st.getAll())) || []).sort((a, b) => a.added - b.added);
+  for (const r of recs){
+    if (!r.file) continue;
+    const blob = new Blob([r.file], {type: guessMime(r.file)});
+    const t = {id: nid++, uid: r.uid, added: r.added, base: r.base, title: r.title, artist: r.artist, file: blob, vid: r.vid || null, vidUrl: r.vid ? URL.createObjectURL(r.vid) : null, url: URL.createObjectURL(blob), lrc: r.lrc, lyr: r.lyr};
+    await setCover(t, r.cover); tracks.push(t);
+  }
+  if (!tracks.length) return;
+  let last = null; try { last = localStorage.getItem('mp:last'); } catch(e){}
+  renderList();
+  if (cur < 0) select(Math.max(0, tracks.findIndex(t => t.uid === last)), false);
+}
+function shrink(img, S = 720){
+  const m = Math.min(img.width, img.height), o = Math.min(S, m), c = document.createElement('canvas');
+  c.width = c.height = o; c.getContext('2d').drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, o, o);
+  return c.toDataURL('image/jpeg', .9);
+}
+function decodeText(b){
+  const enc = b[0], d = b.subarray(1);
+  let label = enc === 3 ? 'utf-8' : enc === 2 ? 'utf-16be' : enc === 1 ? (d[0] === 0xFE && d[1] === 0xFF ? 'utf-16be' : 'utf-16le') : 'iso-8859-1';
+  try { return new TextDecoder(label).decode(d).replace(/\0/g, '').replace(/^\uFEFF/, '').trim(); } catch(e){ return ''; }
+}
+function parseApic(b){
+  const enc = b[0]; let i = 1; while (i < b.length && b[i] !== 0) i++;
+  const mime = String.fromCharCode(...b.subarray(1, i)); i += 2;
+  if (enc === 1 || enc === 2){ while (i + 1 < b.length && !(b[i] === 0 && b[i+1] === 0)) i += 2; i += 2; }
+  else { while (i < b.length && b[i] !== 0) i++; i++; }
+  const img = b.subarray(i); if (img.length < 100) return null;
+  return new Blob([img], {type: mime.includes('/') ? mime : (img[0] === 0x89 ? 'image/png' : 'image/jpeg')});
+}
+async function readTags(file){
+  try {
+    const buf = await file.slice(0, 4 << 20).arrayBuffer(), u = new Uint8Array(buf), v = new DataView(buf);
+    if (u[0] !== 0x49 || u[1] !== 0x44 || u[2] !== 0x33) return {};
+    const ver = u[3], syn = (o) => ((u[o]&127)<<21) | ((u[o+1]&127)<<14) | ((u[o+2]&127)<<7) | (u[o+3]&127);
+    const end = Math.min(10 + syn(6), buf.byteLength); let pos = 10; const out = {};
+    if (u[5] & 0x40) pos += ver === 4 ? syn(10) : v.getUint32(10) + 4;
+    while (pos + 10 <= end){
+      const id = String.fromCharCode(u[pos], u[pos+1], u[pos+2], u[pos+3]); if (!/^[A-Z0-9]{4}$/.test(id)) break;
+      const fs = ver === 4 ? syn(pos + 4) : v.getUint32(pos + 4), body = u.subarray(pos + 10, pos + 10 + fs); pos += 10 + fs;
+      if (!fs) continue;
+      if (id === 'TIT2') out.title = decodeText(body);
+      else if (id === 'TPE1') out.artist = decodeText(body);
+      else if (id === 'APIC' && !out.cover) out.cover = parseApic(body);
+    }
+    return out;
+  } catch(e){ return {}; }
+}
+function updateMedia(){
+  if (!('mediaSession' in navigator)) return;
+  const t = tracks[cur]; if (!t) return;
+  try { navigator.mediaSession.metadata = new MediaMetadata({title: t.title, artist: t.artist, artwork: [{src: t.cover, sizes: '720x720', type: 'image/jpeg'}]}); } catch(e){}
+}
+function initMedia(){
+  if (!('mediaSession' in navigator)) return;
+  const set = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch(e){} };
+  set('play', () => play()); set('pause', () => audio.pause());
+  set('previoustrack', () => $('prev').click()); set('nexttrack', () => $('next').click());
+  set('seekto', d => { audio.currentTime = d.seekTime; });
+}
+
+async function addSongs(files){
+  const all = [...files];
+  const list = all.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|ogg|oga|opus|m4a|flac|aac|weba|webm|mp4)$/i.test(f.name));
+  const lrcs = all.filter(f => /\.lrc$/i.test(f.name));
+  for (const f of list){
+    const title = f.name.replace(/\.[^.]+$/, '');
+    let blob; try { blob = await toBlob(f); } catch(e){ toast('تعذّر قراءة الملف «' + f.name + '». أعد اختياره'); continue; }
+    const t = {id: nid++, uid: uid(), added: Date.now() + nid, title, base: title.toLowerCase(), artist: 'فنان غير معروف', url: URL.createObjectURL(blob), file: blob};
+    const tags = await readTags(blob);
+    if (tags.title) t.title = tags.title;
+    if (tags.artist) t.artist = tags.artist;
+    let cov = defaultCover(t.title);
+    if (tags.cover){ try { cov = shrink(await loadImg(await toData(tags.cover))); } catch(e){} }
+    await setCover(t, cov);
+    tracks.push(t); persist(t);
+  }
+  for (const f of lrcs){
+    const base = f.name.replace(/\.[^.]+$/, '').toLowerCase();
+    const t = tracks.find(x => x.base === base);
+    if (t){ setLyrics(t, await f.text()); persist(t); }
+  }
+  renderList();
+  if (cur < 0 && tracks.length) select(0, true);
+  else renderLyrics();
+}
+
+function select(i, autoplay = true){
+  if (i < 0 || i >= tracks.length) return;
+  cur = i; const t = tracks[i]; t.tries = 0;
+  if (!ed) audio.playbackRate = 1;
+  audio.src = t.url;
+  $('title').textContent = t.title; $('artist').textContent = t.artist;
+  setCoverImg(`url("${t.cover}")`); applyCoverMedia(t);
+  applyTheme(t.colors, t.cover);
+  updateMedia(); try { localStorage.setItem('mp:last', t.uid); } catch(e){}
+  renderList(); renderLyrics();
+  if (autoplay) play();
+}
+
+function renderList(){
+  const el = $('list');
+  $('plCount').textContent = tracks.length > 9 ? '9+' : tracks.length; $('plCount').hidden = !tracks.length;
+  if (!tracks.length){ el.innerHTML = '<div class="empty">اضغط «إضافة أغاني» أو اسحب الملفات الصوتية وأفلتها هنا</div>'; return; }
+  el.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'item' + (i === cur ? ' active' : '');
+    d.innerHTML = '<div class="th"></div><div class="t"><b></b><small></small></div><button class="del" title="حذف">✕</button>';
+    d.querySelector('.th').style.backgroundImage = `url("${t.cover}")`;
+    d.querySelector('b').textContent = t.title;
+    d.querySelector('small').textContent = t.artist;
+    d.onclick = () => { select(i); openPl(false); };
+    d.querySelector('.th').insertAdjacentHTML('beforeend', '<span class="eq"><i></i><i></i><i></i></span>');
+    d.querySelector('.del').innerHTML = ICON.x;
+    d.querySelector('.del').onclick = e => { e.stopPropagation(); remove(i); };
+    el.appendChild(d);
+  });
+}
+
+function remove(i){
+  dbDel(tracks[i].uid); URL.revokeObjectURL(tracks[i].url); if (tracks[i].vidUrl) URL.revokeObjectURL(tracks[i].vidUrl);
+  tracks.splice(i, 1);
+  if (!tracks.length){
+    cur = -1; audio.removeAttribute('src'); audio.load();
+    $('title').textContent = 'لا توجد أغنية'; $('artist').textContent = 'أضف أغنية للبدء';
+    setCoverImg('none'); applyCoverMedia(null); $('bgimg').style.backgroundImage = 'none';
+  } else if (i === cur){ select(Math.min(i, tracks.length-1), !audio.paused); }
+  else if (i < cur){ cur--; }
+  renderList(); renderLyrics();
+}
+
+function step(dir){
+  if (!tracks.length) return;
+  let n = shuffle && tracks.length > 1 ? Math.floor(Math.random()*tracks.length) : (cur + dir + tracks.length) % tracks.length;
+  if (shuffle && n === cur) n = (cur + 1) % tracks.length;
+  select(n);
+}
+
+/* الأحداث */
+$('songIn').onchange = e => { addSongs(e.target.files); e.target.value = ''; };
+$('coverIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f || cur < 0) { if (f) toast('أضف أغنية أولاً'); return; }
+  const t = tracks[cur];
+  try {
+    if (f.type.startsWith('video/')){
+      if (f.size > 40e6){ toast('الفيديو كبير. اختر مقطعاً أقصر (أقل من 40 ميجابايت)'); return; }
+      const url = URL.createObjectURL(f); let poster;
+      try { poster = await videoPoster(url); } catch(err){ URL.revokeObjectURL(url); throw err; }
+      if (t.vidUrl) URL.revokeObjectURL(t.vidUrl);
+      t.vid = f; t.vidUrl = url; await setCover(t, poster);
+    } else {
+      if (f.type === 'image/gif' && f.size > 20e6){ toast('الصورة المتحركة كبيرة. اختر ملفاً أصغر من 20 ميجابايت'); return; }
+      const d = await toData(f), img = await loadImg(d);
+      if (t.vidUrl) URL.revokeObjectURL(t.vidUrl);
+      t.vid = null; t.vidUrl = null;
+      await setCover(t, f.type === 'image/gif' ? d : shrink(img));
+    }
+  } catch(err){ toast('تعذّر قراءة الملف. جرّب MP4 أو WebM أو GIF أو صورة'); return; }
+  setCoverImg(`url("${t.cover}")`); applyCoverMedia(t);
+  applyTheme(t.colors, t.cover); renderList(); persist(t); updateMedia();
+};
+$('editBtn').onclick = () => {
+  if (cur < 0){ toast('أضف أغنية أولاً'); return; }
+  $('eTitle').value = tracks[cur].title; $('eArtist').value = tracks[cur].artist; $('editModal').classList.add('show');
+};
+$('eCancel').onclick = () => $('editModal').classList.remove('show');
+$('eSave').onclick = () => {
+  const t = tracks[cur], n = $('eTitle').value.trim(), a = $('eArtist').value.trim();
+  if (n) t.title = n; if (a) t.artist = a;
+  $('title').textContent = t.title; $('artist').textContent = t.artist; renderList();
+  $('editModal').classList.remove('show'); persist(t); updateMedia();
+};
+$('play').onclick = () => { if (cur < 0 || pending) return; audio.paused ? play() : audio.pause(); };
+$('next').onclick = () => step(1);
+$('prev').onclick = () => { if (audio.currentTime > 3) audio.currentTime = 0; else step(-1); };
+$('shuffle').onclick = e => { shuffle = !shuffle; e.currentTarget.classList.toggle('on', shuffle); };
+$('repeat').onclick = e => { repeat = !repeat; e.currentTarget.classList.toggle('on', repeat); };
+let prevVol = .8, volTimer;
+function setVol(v){
+  v = Math.max(0, Math.min(1, v)); audio.volume = v; $('vol').value = v; setFill($('vol'));
+  const ic = v === 0 ? ICON.vmute : v < .5 ? ICON.vlow : ICON.vhigh;
+  $('volBtn').innerHTML = ic; $('muteBtn').innerHTML = ic;
+  try { localStorage.setItem('mp:vol', v); } catch(e){}
+}
+const keepVol = () => { clearTimeout(volTimer); volTimer = setTimeout(() => $('volPop').classList.remove('open'), 3500); };
+$('vol').oninput = e => { setVol(+e.target.value); if (+e.target.value > 0) prevVol = +e.target.value; keepVol(); };
+$('muteBtn').onclick = () => { if (audio.volume > 0){ prevVol = audio.volume; setVol(0); } else setVol(prevVol || .8); keepVol(); };
+$('volBtn').onclick = e => { e.stopPropagation(); $('volPop').classList.toggle('open'); keepVol(); };
+document.addEventListener('click', e => { if (!e.composedPath().some(n => n.classList && n.classList.contains('volwrap'))) $('volPop').classList.remove('open'); });
+const openPl = on => { $('plCard').classList.toggle('open', on); $('scrim').classList.toggle('show', on); };
+$('plBtn').onclick = () => openPl(!$('plCard').classList.contains('open'));
+$('plClose').onclick = $('scrim').onclick = () => openPl(false);
+addEventListener('keydown', e => { if (e.key === 'Escape'){ openPl(false); $('volPop').classList.remove('open'); } });
+$('seek').oninput = e => { if (isFinite(audio.duration)) audio.currentTime = e.target.value / 100 * audio.duration; setFill(e.target); };
+
+const setFill = el => el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+audio.onplay = () => { $('play').innerHTML = ICON.pause; document.body.classList.add('playing'); $('cover').classList.add('playing'); const cv = $('coverVid'); if (cv) cv.play().catch(() => {}); };
+audio.onpause = () => { $('play').innerHTML = ICON.play; document.body.classList.remove('playing'); $('cover').classList.remove('playing'); const cv = $('coverVid'); if (cv) cv.pause(); };
+audio.onloadedmetadata = () => { $('dur').textContent = fmt(audio.duration); };
+audio.ontimeupdate = () => {
+  $('cur').textContent = fmt(audio.currentTime);
+  if (isFinite(audio.duration)){ $('seek').value = audio.currentTime / audio.duration * 100; setFill($('seek')); }
+  try { syncLyrics(); } catch(e){}
+};
+audio.addEventListener('loadeddata', () => { const t = tracks[cur]; if (t) t.tries = 0; });
+audio.onerror = () => {
+  const t = tracks[cur]; if (!t || !t.file) return;
+  const code = audio.error ? audio.error.code : 0; if (code === 1) return;
+  t.tries = (t.tries || 0) + 1;
+  const go = src => { if (tracks[cur] === t){ audio.src = src; play(); } };
+  if (t.tries === 1){
+    try { URL.revokeObjectURL(t.url); } catch(e){}
+    t.url = URL.createObjectURL(new Blob([t.file], {type: guessMime(t.file)})); go(t.url);
+  } else if (t.tries === 2){
+    const r = new FileReader(); r.onload = () => go(r.result);
+    r.onerror = () => toast('تعذّر قراءة الأغنية من الجهاز. أعد إضافتها (رمز ' + code + ')');
+    r.readAsDataURL(t.file);
+  } else {
+    toast(code === 3 ? 'الملف تالف أو غير مكتمل، جرّب نسخة أخرى منه (رمز 3)'
+        : code === 2 ? 'انقطعت قراءة الملف. أعد إضافة الأغنية (رمز 2)'
+        : 'تعذّر تشغيل الأغنية في هذا المتصفح. أعد إضافتها من الملف الأصلي (رمز ' + code + ')');
+  }
+};
+audio.onended = () => { if (ed) return; if (repeat) { audio.currentTime = 0; play(); } else if (cur < tracks.length - 1 || shuffle) step(1); };
+
+/* الكلمات */
+let act = -1, rafOn = false, ed = null;
+const ts = t => { t = Math.max(0, t); return `[${String(Math.floor(t/60)).padStart(2,'0')}:${(t%60).toFixed(2).padStart(5,'0')}]`; };
+const mmss = t => t == null ? '--:--.-' : Math.floor(t/60) + ':' + (t%60).toFixed(1).padStart(4,'0');
+const toLrc = lines => lines.flatMap((l, i) => {
+  const o = [`${ts(l.t)} ${l.text}`], nx = lines[i+1];
+  if (l.e != null && (!nx || l.e < nx.t - 0.25)) o.push(`${ts(l.e)} `);
+  return o;
+}).join('\n');
+const plainLines = () => $('lyrText').value.split(/\r?\n/).map(s => s.replace(/\[[^\]]*\]/g, '').trim()).filter(Boolean);
+function parseLrc(txt){
+  const raw = [], re = /\[(\d+):(\d+(?:[.:]\d+)?)\]/g, plain = [];
+  let synced = false;
+  for (const line of txt.split(/\r?\n/)){
+    const tags = [...line.matchAll(re)], text = line.replace(re, '').trim();
+    if (tags.length){ synced = true; tags.forEach(m => raw.push({t: +m[1]*60 + parseFloat(m[2].replace(':','.')), text})); }
+    else if (/^\[[a-z]+:.*\]$/i.test(line.trim())) continue;
+    else if (line.trim()) plain.push({t: null, e: null, text: line.trim()});
+  }
+  if (!synced) return {lines: plain, synced: false};
+  raw.sort((a, b) => a.t - b.t);
+  const out = [];
+  for (const r of raw){
+    if (r.text === ''){ if (out.length && out[out.length-1].e == null) out[out.length-1].e = r.t; }
+    else out.push({t: r.t, e: null, text: r.text});
+  }
+  return {lines: out, synced: true};
+}
+function setLyrics(t, raw){ t.lrc = raw; t.lyr = parseLrc(raw); }
+function renderLyrics(){
+  const el = $('lyrics'); el.innerHTML = ''; act = -1; el.scrollTop = 0;
+  const t = tracks[cur], has = !!(t && t.lyr && t.lyr.lines.length);
+  el.hidden = cur < 0;
+  el.classList.toggle('empty', !has);
+  el.classList.toggle('plain', has && !t.lyr.synced);
+  if (!has){
+    if (cur >= 0){ el.innerHTML = '<button class="addlyr" id="addLyr"><span></span>أضف كلمات الأغنية</button>'; $('addLyr').firstChild.innerHTML = ICON.lyrics; $('addLyr').onclick = openLyr; }
+    return;
+  }
+  t.lyr.lines.forEach(l => {
+    const p = document.createElement('p'); p.textContent = l.text;
+    p.style.setProperty('--d', /[\u0600-\u06FF\u0750-\u077F]/.test(l.text) ? 'left' : 'right');
+    if (l.t !== null) p.onclick = () => { audio.currentTime = l.t; if (audio.paused) play(); };
+    el.appendChild(p);
+  });
+  syncLyrics(true);
+}
+function syncLyrics(force){
+  const t = tracks[cur]; if (!t || !t.lyr || !t.lyr.synced) return;
+  const L = t.lyr.lines, ct = audio.currentTime, now = ct + 0.22; let k = -1;
+  for (let i = 0; i < L.length; i++){ if (L[i].t <= now) k = i; else break; }
+  const live = k >= 0 && (L[k].e == null || ct < L[k].e + 0.05), key = k + (live ? 'L' : 'G');
+  const box = $('lyrics'), ps = box.children;
+  if (ps.length !== L.length || ps[0].tagName !== 'P'){ if (!force) renderLyrics(); return; }
+  if (key !== act || force){
+    act = key;
+    [...ps].forEach((p, i) => { const d = i - k; p.className = (d === 0 && live) ? 'on' : d <= 0 ? 'past' + Math.min(live ? -d : 1 - d, 3) : 'next' + Math.min(d, 3); });
+    if (live) box.scrollTo({top: ps[k].offsetTop - box.clientHeight * 0.4 + ps[k].clientHeight / 2, behavior: force ? 'instant' : 'smooth'});
+  }
+  if (live){
+    const l = L[k], dur = l.e != null ? Math.max(.3, l.e - l.t) : Math.min(8, Math.max(.3, (k + 1 < L.length ? L[k+1].t : l.t + 5) - l.t));
+    ps[k].style.setProperty('--prog', Math.min(100, Math.max(0, (ct - l.t) / dur * 100)) + '%');
+  }
+}
+audio.addEventListener('play', () => {
+  if (rafOn) return; rafOn = true;
+  const f = () => { try { syncLyrics(); } catch(e){} if (!audio.paused) requestAnimationFrame(f); else rafOn = false; };
+  requestAnimationFrame(f);
+});
+
+/* نافذة الكلمات */
+function lyrInfo(){
+  const pr = parseLrc($('lyrText').value.trim()), n = pr.lines.length;
+  $('lyrHint').textContent = !n ? 'الصق الكلمات أو حمّل ملفاً (.lrc أو .txt)' : n + ' سطر · ' + (pr.synced ? 'لها توقيت ✓' : 'بدون توقيت');
+  $('plainOpts').hidden = !n; $('autoBtn').hidden = !n || pr.synced; $('shiftRow').hidden = !pr.synced;
+}
+function closeEditor(){
+  if (ed){ clearInterval(ed.timer); const t = tracks[cur]; if (t){ t.draft = ed.lines; t.draftSrc = $('lyrText').value.trim(); } ed = null; }
+  audio.playbackRate = 1; $('editorUI').hidden = true; $('editArea').hidden = false; $('lyrBox').classList.remove('ed');
+}
+function closeModal(){ closeEditor(); $('modal').classList.remove('show'); }
+function openLyr(){
+  if (cur < 0){ toast('أضف أغنية أولاً'); return; }
+  closeEditor(); $('lyrText').value = tracks[cur].lrc || ''; lyrInfo(); $('modal').classList.add('show');
+}
+$('lyrBtn').onclick = openLyr;
+$('lyrText').oninput = lyrInfo;
+$('lyrCancel').onclick = closeModal;
+$('lyrSave').onclick = () => {
+  const t = tracks[cur], v = $('lyrText').value.trim();
+  if (!v){ t.lrc = ''; t.lyr = null; t.draft = null; }
+  else if (v !== (t.lrc || '').trim()){ setLyrics(t, v); t.draft = null; }
+  closeModal(); renderLyrics(); persist(t);
+  if (v && t.lyr && !t.lyr.synced) toast('تم الحفظ. لتتبع الكلمات مع الأغنية اختر توزيعاً تلقائياً أو ضبطاً يدوياً');
+};
+$('pasteBtn').onclick = async () => {
+  try { $('lyrText').value = await navigator.clipboard.readText(); lyrInfo(); }
+  catch(e){ toast('اضغط ضغطة مطوّلة داخل المربع ثم اختر «لصق»'); $('lyrText').focus(); }
+};
+$('clearBtn').onclick = () => { $('lyrText').value = ''; lyrInfo(); };
+$('lrcIn').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f){ $('lyrText').value = await f.text(); lyrInfo(); } };
+$('autoBtn').onclick = () => {
+  const d = audio.duration; if (!isFinite(d)){ toast('انتظر تحميل الأغنية ثم أعد المحاولة'); return; }
+  const lines = plainLines(), w = lines.map(l => Math.max(8, l.length)), total = w.reduce((a, b) => a + b, 0);
+  const start = Math.min(10, d * .08), span = d * .92 - start; let acc = 0;
+  $('lyrText').value = toLrc(lines.map((text, i) => { const t = start + acc / total * span; acc += w[i]; return {t, e: null, text}; }));
+  lyrInfo(); toast('تم التوزيع. دقّق التوقيت بالضبط اليدوي أو احفظ');
+};
+document.querySelectorAll('[data-sh]').forEach(b => b.onclick = () => {
+  const d = +b.dataset.sh, pr = parseLrc($('lyrText').value); if (!pr.synced) return;
+  $('lyrText').value = toLrc(pr.lines.map(l => ({t: Math.max(0, l.t + d), e: l.e == null ? null : Math.max(0, l.e + d), text: l.text}))); lyrInfo();
+});
+
+/* الضبط اليدوي الدقيق */
+const LAT = 0.12, clampT = x => Math.max(0, +x.toFixed(2));
+function openEditor(){
+  const t = tracks[cur], v = $('lyrText').value.trim();
+  let lines;
+  if (t.draft && t.draftSrc === v) lines = t.draft.map(l => ({...l}));
+  else if (t.lyr && t.lyr.synced && v === (t.lrc || '').trim()) lines = t.lyr.lines.map(l => ({text: l.text, t: l.t, e: l.e ?? null}));
+  else lines = parseLrc(v).lines.map(l => ({text: l.text, t: l.t, e: l.e ?? null}));
+  if (!lines.length) return;
+  ed = {lines, rows: [], sel: 0, down: null, stopAt: null, cur: -1};
+  ed.sel = Math.max(0, lines.findIndex(l => l.t == null));
+  $('editArea').hidden = true; $('editorUI').hidden = false; $('lyrBox').classList.add('ed');
+  audio.playbackRate = 1; $('edSpeed').textContent = '1x';
+  const box = $('edList'); box.innerHTML = '';
+  lines.forEach((l, i) => {
+    const r = document.createElement('div'); r.className = 'erow';
+    r.innerHTML = '<span class="en"></span><span class="et"></span><button class="chip cs"></button><button class="chip ce"></button>';
+    r.querySelector('.en').textContent = i + 1; r.querySelector('.et').textContent = l.text;
+    const cs = r.querySelector('.cs'), ce = r.querySelector('.ce');
+    r.onclick = () => selRow(i);
+    cs.onclick = ev => { ev.stopPropagation(); selRow(i); if (l.t != null) audio.currentTime = Math.max(0, l.t - 0.3); };
+    ce.onclick = ev => { ev.stopPropagation(); selRow(i); if (l.e != null) audio.currentTime = Math.max(0, l.e - 1.5); };
+    box.appendChild(r); ed.rows.push({r, cs, ce}); refreshRow(i);
+  });
+  selRow(ed.sel); ed.timer = setInterval(edTick, 100); edTick();
+}
+function refreshRow(i){
+  const R = ed.rows[i], l = ed.lines[i];
+  R.cs.textContent = mmss(l.t); R.ce.textContent = mmss(l.e);
+  R.cs.classList.toggle('set', l.t != null); R.ce.classList.toggle('set', l.e != null);
+}
+function selRow(i){
+  const old = ed.rows[ed.sel]; if (old) old.r.classList.remove('sel');
+  ed.sel = Math.max(0, Math.min(ed.lines.length - 1, i));
+  const r = ed.rows[ed.sel].r, b = $('edList'); r.classList.add('sel');
+  b.scrollTop = r.offsetTop - b.clientHeight / 2 + r.clientHeight / 2;
+}
+function setStart(i, v){ const l = ed.lines[i]; l.t = clampT(v); if (l.e != null && l.e <= l.t) l.e = null; refreshRow(i); }
+function setEnd(i, v){
+  const l = ed.lines[i]; if (l.t == null){ toast('حدّد بداية السطر أولاً'); return; }
+  v = clampT(v); if (v <= l.t + .1){ toast('النهاية يجب أن تكون بعد البداية'); return; }
+  l.e = v; refreshRow(i);
+}
+function holdDown(){
+  if (!ed || ed.down) return;
+  if (audio.paused){ toast('شغّل الأغنية أولاً'); return; }
+  const now = Math.max(0, audio.currentTime - LAT);
+  ed.down = {i: ed.sel, t0: now}; setStart(ed.sel, now); $('holdBtn').classList.add('down');
+}
+function holdUp(){
+  if (!ed || !ed.down) return;
+  const {i, t0} = ed.down, now = Math.max(0, audio.currentTime - LAT);
+  ed.down = null; $('holdBtn').classList.remove('down');
+  if (now - t0 > 0.45) setEnd(i, now);
+  selRow(i + 1);
+}
+const hb = $('holdBtn');
+hb.onpointerdown = e => { e.preventDefault(); try { hb.setPointerCapture(e.pointerId); } catch(_){} holdDown(); };
+hb.onpointerup = hb.onpointercancel = holdUp;
+addEventListener('keydown', e => { if (ed && e.code === 'Space' && !/INPUT|TEXTAREA/.test(e.target.tagName)){ e.preventDefault(); if (!e.repeat) holdDown(); } });
+addEventListener('keyup', e => { if (ed && e.code === 'Space') holdUp(); });
+document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => {
+  if (!ed) return;
+  const w = b.dataset.n[0], d = parseFloat(b.dataset.n.slice(1)), l = ed.lines[ed.sel];
+  if (w === 's') setStart(ed.sel, d === 0 ? audio.currentTime : (l.t == null ? audio.currentTime : l.t + d));
+  else if (d === 0) setEnd(ed.sel, audio.currentTime);
+  else if (l.e != null) setEnd(ed.sel, l.e + d);
+});
+$('edPrev').onclick = () => {
+  const l = ed.lines[ed.sel]; if (l.t == null){ toast('حدّد بداية السطر أولاً'); return; }
+  const nx = ed.lines[ed.sel + 1];
+  ed.stopAt = l.e != null ? l.e : (nx && nx.t != null ? nx.t : l.t + 4);
+  audio.currentTime = Math.max(0, l.t - 0.4); play();
+};
+$('edClr').onclick = () => { const l = ed.lines[ed.sel]; l.t = null; l.e = null; refreshRow(ed.sel); };
+$('edPlay').onclick = () => { ed.stopAt = null; audio.paused ? play() : audio.pause(); };
+$('edBk').onclick = () => { audio.currentTime = Math.max(0, audio.currentTime - 1); };
+$('edFw').onclick = () => { audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 1); };
+$('edSeek').oninput = e => { if (isFinite(audio.duration)){ ed.stopAt = null; audio.currentTime = e.target.value / 1000 * audio.duration; } };
+$('edSpeed').onclick = () => { const sp = [1, .75, .5]; audio.playbackRate = sp[(sp.indexOf(audio.playbackRate) + 1) % 3]; $('edSpeed').textContent = audio.playbackRate + 'x'; };
+$('edBack').onclick = closeEditor;
+$('edSave').onclick = () => {
+  const timed = ed.lines.filter(l => l.t != null).sort((a, b) => a.t - b.t), miss = ed.lines.length - timed.length;
+  if (!timed.length){ toast('لم تحدّد أي توقيت بعد'); return; }
+  const t = tracks[cur]; t.lyr = {lines: timed.map(l => ({t: l.t, e: l.e, text: l.text})), synced: true}; t.lrc = toLrc(t.lyr.lines); t.draft = null;
+  ed.lines = []; clearInterval(ed.timer); ed = null;
+  $('lyrText').value = t.lrc; closeModal(); renderLyrics(); persist(t);
+  toast(miss ? 'تم الحفظ، وتجاهلت ' + miss + ' سطر بلا توقيت' : 'تم حفظ الكلمات ✓');
+};
+$('manBtn').onclick = openEditor;
+function edTick(){
+  if (!ed) return;
+  const ct = audio.currentTime, du = audio.duration;
+  if (ed.stopAt != null && ct >= ed.stopAt){ audio.pause(); ed.stopAt = null; }
+  $('edTime').textContent = mmss(ct) + ' / ' + (isFinite(du) ? mmss(du) : '--');
+  if (document.activeElement !== $('edSeek')) $('edSeek').value = isFinite(du) && du ? ct / du * 1000 : 0;
+  $('edPlay').innerHTML = audio.paused ? ICON.play : ICON.pause;
+  let k = -1; ed.lines.forEach((l, i) => { if (l.t != null && l.t <= ct) k = i; });
+  if (k !== ed.cur){ if (ed.rows[ed.cur]) ed.rows[ed.cur].r.classList.remove('now'); if (k >= 0) ed.rows[k].r.classList.add('now'); ed.cur = k; }
+}
+
+/* السحب والإفلات */
+addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drop'); });
+addEventListener('dragleave', () => document.body.classList.remove('drop'));
+addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drop'); addSongs(e.dataTransfer.files); });
+
+document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = ICON[e.dataset.i]);
+document.querySelectorAll('.ib').forEach(b => b.addEventListener('click', () => { b.classList.add('tip'); setTimeout(() => b.classList.remove('tip'), 1800); }));
+{ let v = .8; try { const x = localStorage.getItem('mp:vol'); if (x !== null) v = +x; } catch(e){} if (v > 0) prevVol = v; setVol(v); }
+renderList();
+$('cover').onclick = () => { if (cur < 0) $('songIn').click(); };
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b && !b.closest('.modal')) b.blur(); });
+addEventListener('keydown', e => {
+  if (ed || cur < 0 || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ($('modal').classList.contains('show') || $('editModal').classList.contains('show') || $('styleModal').classList.contains('show')) return;
+  if (/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName)) return;
+  if (e.code === 'Space'){ e.preventDefault(); $('play').click(); }
+  else if (e.code === 'ArrowRight'){ e.preventDefault(); if (e.shiftKey) $('next').click(); else audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5); }
+  else if (e.code === 'ArrowLeft'){ e.preventDefault(); if (e.shiftKey) $('prev').click(); else audio.currentTime = Math.max(0, audio.currentTime - 5); }
+});
+/* شكل الكلمات: الخط والحجم والتأثير */
+const SYS = 'system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif';
+const GFONTS = [['Cairo'], ['Tajawal'], ['Almarai'], ['Amiri'], ['Reem Kufi'], ['El Messiri'], ['Changa'], ['Lalezar', 1], ['Aref Ruqaa'], ['Harmattan'], ['Poppins'], ['Playfair Display']];
+const LS0 = {font: 'sys', size: 1, weight: 'normal', fx: 'fill', perf: 'auto'};
+let LS = {...LS0}; const USER_FONTS = [], FACES = {};
+try { Object.assign(LS, JSON.parse(localStorage.getItem('mp:ls') || '{}')); } catch(e){}
+const saveLS = () => { try { localStorage.setItem('mp:ls', JSON.stringify(LS)); } catch(e){} };
+function loadGoogle(n){
+  const id = 'gf-' + n.replace(/\s/g, '-'); if (document.getElementById(id)) return;
+  const g = GFONTS.find(x => x[0] === n), l = document.createElement('link');
+  l.id = id; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + n.replace(/ /g, '+') + (g && g[1] ? '' : ':wght@400;700') + '&display=swap';
+  l.onload = () => { if (cur >= 0) syncLyrics(true); };
+  document.head.appendChild(l);
+}
+function applyLS(){
+  const f = LS.font; let stack = SYS;
+  if (f.startsWith('g:')){ loadGoogle(f.slice(2)); stack = "'" + f.slice(2) + "', " + SYS; }
+  else if (f.startsWith('u:')) stack = "'UF" + f.slice(2) + "', " + SYS;
+  const W = ({light: [400, 700], normal: [600, 800], bold: [800, 900]})[LS.weight] || [600, 800];
+  root.style.setProperty('--lf', stack); root.style.setProperty('--ls', LS.size);
+  root.style.setProperty('--lw', W[0]); root.style.setProperty('--lwo', W[1]);
+  $('lyrics').dataset.fx = LS.fx; $('lyrPrev').dataset.fx = LS.fx;
+  if (cur >= 0) syncLyrics(true);
+}
+async function registerFont(id, buf){ const face = new FontFace('UF' + id, buf); await face.load(); document.fonts.add(face); FACES[id] = face; }
+function delUserFont(id){
+  const i = USER_FONTS.findIndex(f => f.id === id); if (i >= 0) USER_FONTS.splice(i, 1);
+  try { document.fonts.delete(FACES[id]); } catch(e){}
+  dbReq(st => st.delete(id), 'fonts');
+  if (LS.font === 'u:' + id){ LS.font = 'sys'; saveLS(); applyLS(); }
+  renderChips();
+}
+function renderChips(){
+  const box = $('fontChips'); box.innerHTML = '';
+  const add = (key, label, fam, del) => {
+    const b = document.createElement('button'); b.className = 'fc' + (LS.font === key ? ' sel' : '');
+    b.innerHTML = '<span>أبجد Aa</span><small></small>'; b.lastChild.textContent = label; b.firstChild.style.fontFamily = fam;
+    b.onclick = () => { LS.font = key; saveLS(); applyLS(); renderChips(); };
+    if (del){ const x = document.createElement('i'); x.className = 'fdel'; x.innerHTML = ICON.x; x.onclick = e => { e.stopPropagation(); delUserFont(del); }; b.appendChild(x); }
+    box.appendChild(b);
+  };
+  add('sys', 'الافتراضي', SYS);
+  GFONTS.forEach(([n]) => { loadGoogle(n); add('g:' + n, n, "'" + n + "', " + SYS); });
+  USER_FONTS.forEach(f => add('u:' + f.id, f.name, "'UF" + f.id + "', " + SYS, f.id));
+}
+function markControls(){
+  $('stSize').value = LS.size;
+  document.querySelectorAll('#segW button').forEach(b => b.classList.toggle('sel', b.dataset.v === LS.weight));
+  document.querySelectorAll('#segFx button').forEach(b => b.classList.toggle('sel', b.dataset.v === LS.fx));
+  document.querySelectorAll('#segPerf button').forEach(b => b.classList.toggle('sel', b.dataset.v === (LS.perf || 'auto')));
+}
+$('styleBtn').onclick = () => { renderChips(); markControls(); $('styleModal').classList.add('show'); };
+$('stClose').onclick = () => $('styleModal').classList.remove('show');
+$('styleModal').onclick = e => { if (e.target === $('styleModal')) $('styleModal').classList.remove('show'); };
+$('stSize').oninput = e => { LS.size = +e.target.value; saveLS(); applyLS(); };
+document.querySelectorAll('#segW button').forEach(b => b.onclick = () => { LS.weight = b.dataset.v; saveLS(); applyLS(); markControls(); });
+document.querySelectorAll('#segFx button').forEach(b => b.onclick = () => { LS.fx = b.dataset.v; saveLS(); applyLS(); markControls(); });
+$('stReset').onclick = () => { LS = {...LS0}; saveLS(); applyLS(); renderChips(); markControls(); perfChange(); };
+$('fontIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (f.size > 8e6){ toast('الخط كبير جداً (الحد 8 ميجابايت)'); return; }
+  try {
+    const id = uid(), name = f.name.replace(/\.[^.]+$/, '');
+    await registerFont(id, await f.arrayBuffer());
+    USER_FONTS.push({id, name}); dbReq(st => st.put({id, name, blob: f}), 'fonts');
+    LS.font = 'u:' + id; saveLS(); applyLS(); renderChips(); toast('تمت إضافة الخط وتطبيقه');
+  } catch(err){ toast('تعذّر قراءة الخط. استخدم ملف TTF أو OTF أو WOFF'); }
+};
+async function loadUserFonts(){
+  await dbReady; if (!DBN.db) return;
+  const fs = (await dbReq(st => st.getAll(), 'fonts')) || [];
+  for (const f of fs){ try { await registerFont(f.id, await f.blob.arrayBuffer()); USER_FONTS.push({id: f.id, name: f.name}); } catch(e){} }
+  applyLS();
+}
+applyLS(); loadUserFonts();
+/* إشعار التحكم (شاشة القفل / لوحة الإشعارات) */
+let posT = 0;
+function updPos(force){
+  if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+  const now = Date.now(); if (!force && now - posT < 1000) return; posT = now;
+  const d = audio.duration;
+  try { if (isFinite(d) && d > 0) navigator.mediaSession.setPositionState({duration: d, playbackRate: audio.playbackRate || 1, position: Math.min(Math.max(0, audio.currentTime), d)}); } catch(e){}
+}
+['loadedmetadata', 'play', 'pause', 'seeked', 'ratechange', 'durationchange'].forEach(ev => audio.addEventListener(ev, () => updPos(true)));
+audio.addEventListener('timeupdate', () => updPos(false));
+audio.addEventListener('play', () => { try { navigator.mediaSession.playbackState = 'playing'; } catch(e){} });
+audio.addEventListener('pause', () => { try { navigator.mediaSession.playbackState = 'paused'; } catch(e){} });
+/* زر الرجوع في الهاتف: يُغلق النافذة أو القائمة المفتوحة بدل الخروج */
+const OVL = ['plCard', 'modal', 'editModal', 'styleModal'].map(id => $(id));
+let ovlPushed = false;
+const anyOvl = () => OVL.some(e => e.classList.contains('open') || e.classList.contains('show'));
+const ovlMO = new MutationObserver(() => {
+  const a = anyOvl();
+  if (a && !ovlPushed){ try { history.pushState({ovl: 1}, ''); ovlPushed = true; } catch(e){} }
+  else if (!a && ovlPushed){ ovlPushed = false; try { history.back(); } catch(e){} }
+});
+OVL.forEach(e => ovlMO.observe(e, {attributes: true, attributeFilter: ['class']}));
+addEventListener('popstate', () => {
+  if (!ovlPushed) return; ovlPushed = false;
+  openPl(false); closeModal(); $('editModal').classList.remove('show'); $('styleModal').classList.remove('show');
+});
+/* الأداء: وضع سريع تلقائي للهواتف البطيئة */
+let perfSlow = null; try { const sv = localStorage.getItem('mp:slow'); if (sv !== null) perfSlow = sv === '1'; } catch(e){}
+function perfApply(){
+  const m = LS.perf || 'auto';
+  root.classList.toggle('lite', m === 'fast' || (m === 'auto' && perfSlow === true));
+}
+function perfProbe(){
+  if ((LS.perf || 'auto') !== 'auto' || perfSlow !== null) return;
+  setTimeout(() => {
+    if (document.hidden) return;
+    let n = 0, slow = 0, t0 = 0, last = 0;
+    const f = ts => {
+      if (document.hidden) return;
+      if (!t0){ t0 = last = ts; }
+      n++; if (ts - last > 33) slow++; last = ts;
+      if (ts - t0 < 1500){ requestAnimationFrame(f); return; }
+      const fps = n / ((ts - t0) / 1000);
+      perfSlow = fps < 40 || slow / n > 0.4;
+      try { localStorage.setItem('mp:slow', perfSlow ? '1' : '0'); } catch(e){}
+      perfApply();
+    };
+    requestAnimationFrame(f);
+  }, 4000);
+}
+function perfChange(){
+  if ((LS.perf || 'auto') === 'auto'){ perfSlow = null; try { localStorage.removeItem('mp:slow'); } catch(e){} root.classList.remove('lite'); perfProbe(); }
+  else perfApply();
+}
+document.querySelectorAll('#segPerf button').forEach(b => b.onclick = () => { LS.perf = b.dataset.v; saveLS(); perfChange(); markControls(); });
+perfApply(); perfProbe();
+initMedia(); restore();
+</script>
+</body>
+</html>
